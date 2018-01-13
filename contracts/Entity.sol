@@ -1,8 +1,9 @@
 pragma solidity ^0.4.15;
-import './Owned.sol';
 import './Trusteed.sol';
 
-contract Entity is Owned, Trusteed {
+contract Entity is Trusteed {
+    address public owner;
+    address public newOwner;
 
     uint funds; // wei
 
@@ -17,12 +18,17 @@ contract Entity is Owned, Trusteed {
       )
         public
         Trusteed(msg.sender)
-        Owned(_owner)
     {
+        owner = _owner;
         category = _category;
         isAccreditedInvestor = _investor;
         verified = false;
         funds = 0;
+    }
+
+    modifier ownerOnly(address _address) {
+        require(_address == owner);
+        _;
     }
 
     function() payable {
@@ -36,9 +42,27 @@ contract Entity is Owned, Trusteed {
         verified = true;
     }
 
+    function transferOwnership(address _sender, address _newOwner)
+        public
+        ownerOnly(_sender)
+        trusteeOnly(msg.sender)
+    {
+        require(_newOwner != owner);
+        newOwner = _newOwner;
+    }
+
+    function acceptOwnership(address _sender)
+        public
+        trusteeOnly(msg.sender)
+    {
+        require(_sender == newOwner);
+        owner = newOwner;
+        newOwner = 0x0;
+    }
+
     function withdraw()
         public
-        ownerOnly
+        ownerOnly(msg.sender)
     {
         var amount = funds;
         funds = 0;
@@ -55,7 +79,7 @@ contract Entity is Owned, Trusteed {
 
     function balance()
         public
-        ownerOnly
+        ownerOnly(msg.sender)
         constant returns(uint256)
     {
         return funds;
