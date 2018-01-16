@@ -4,7 +4,9 @@ import './UtilsLib.sol';
 import './Owned.sol';
 import './Trusteed.sol';
 import { Beneficiary } from './Beneficiary.sol';
+import { Sale } from './Sale.sol';
 import { SmartLawTrust } from './SmartLawTrust.sol';
+import { Entity } from './Entity.sol';
 
 contract Trust is Trusteed {
 
@@ -13,14 +15,16 @@ contract Trust is Trusteed {
   address[] beneficiaries;
   address[] pendingBeneficiaries;
   address[] sales;
-  address[] dissolve;
+  address[] dissolveSignatures;
   bool public forSale;
-  uint public forSaleAmount;
+  uint public forSaleAmount; // wei
   uint safetyDelay;
   bool public deleted;
 
   event PendingBeneficiaryAdded(address beneficiary);
   event BeneficiaryAdded(address entity);
+
+  event SaleOfferAdded(address sale);
 
   function Trust(string _name, string _property, address _beneficiary)
       public
@@ -36,6 +40,16 @@ contract Trust is Trusteed {
 
   modifier notDissolved() {
       require(deleted == false);
+      _;
+  }
+
+  modifier notForSale() {
+      require(forSale == false);
+      _;
+  }
+
+  modifier isForSale() {
+      require(forSale == true);
       _;
   }
 
@@ -60,6 +74,22 @@ contract Trust is Trusteed {
       return beneficiaries;
   }
 
+  function getBeneficiaryByIndex(uint index)
+      public
+      notDissolved
+      constant returns (address)
+  {
+      return beneficiaries[index];
+  }
+
+  function beneficiariesCount()
+      public
+      notDissolved
+      constant returns (uint)
+  {
+      return beneficiaries.length;
+  }
+
   function getPendingBeneficiaries()
       public
       notDissolved
@@ -68,18 +98,112 @@ contract Trust is Trusteed {
       return pendingBeneficiaries;
   }
 
-  /**
-   * @dev allows adding new beneficiary entity to trust
-   * @param  _entity  entity address of the existing beneficiary
-   * @param  _beneficiaryEntity entity address of the new beneficiary
-   */
-  function newBeneficiary(address _entity, address _beneficiaryEntity)
+  function dissolve()
       public
       notDissolved
-      beneficiary(_entity)
+  {
+      address _entity = validateSender();
+      if(UtilsLib.isAddressFound(dissolveSignatures, _entity))
+          revert();
+      else
+          dissolveSignatures.push(_entity);
+
+      if(beneficiaries.length == dissolveSignatures.length)
+      {
+          deleted = true;
+      }
+  }
+
+  function cancelSale()
+      public
+      notDissolved
+      isForSale
+  {
+      validateSender();
+      forSale = false;
+      forSaleAmount = 0;
+      address[] memory emptyAddressArray;
+      sales = emptyAddressArray;
+  }
+
+  function sold(address _entity)
+      public
+      trusteeOnly(msg.sender)
+  {
+      address[] memory emptyAddressArray;
+      forSale = false;
+      forSaleAmount = 0;
+      sales = emptyAddressArray;
+      beneficiaries = emptyAddressArray;
+      pendingBeneficiaries = emptyAddressArray;
+      dissolveSignatures = emptyAddressArray;
+      deleted = false;
+      beneficiaries.push(_entity);
+  }
+
+  function validateSender()
+      private
+      constant returns (address)
   {
       SmartLawTrust smartLaw = SmartLawTrust(trustee);
+      require(smartLaw.isEntityOwner(msg.sender));
+      address _entity = smartLaw.entityAddress(msg.sender);
+      require(isBeneficiary(_entity));
+      return _entity;
+  }
+
+  function newSaleOffer(uint _amount)
+      public
+      notDissolved
+      notForSale
+  {
+      address _entity = validateSender();
+      if(beneficiaries.length > 1) {
+          Sale saleOffer = new Sale(address(this), _amount, _entity);
+          sales.push(saleOffer);
+          SaleOfferAdded(saleOffer);
+      }
+      else {
+          forSale = true;
+          forSaleAmount = _amount;
+      }
+  }
+
+  /**
+   * @dev allow beneficiaries to agree to sale offer amount
+   * @param  _sale sale address of the sale offer
+   */
+  function agreeToSaleOffer(address _sale)
+      public
+      notDissolved
+      notForSale
+  {
+      address _entity = validateSender();
+      Sale saleOffer = Sale(_sale);
+      saleOffer.sign(_entity);
+      if(beneficiaries.length == saleOffer.countSignatures())
+      {
+          forSale = true;
+          forSaleAmount = saleOffer.amount();
+          saleOffer.deactivate();
+          address[] memory emptyAddressArray;
+          sales = emptyAddressArray;
+      }
+  }
+
+  /**
+   * @dev allows adding new beneficiary entity to trust
+   * @param  _beneficiaryEntity entity address of the new beneficiary
+   */
+  function newBeneficiary(address _beneficiaryEntity)
+      public
+      notDissolved
+  {
+      SmartLawTrust smartLaw = SmartLawTrust(trustee);
+      require(smartLaw.isEntityOwner(msg.sender));
       require(smartLaw.isEntity(_beneficiaryEntity));
+      address _entity = smartLaw.entityAddress(msg.sender);
+      require(isBeneficiary(_entity));
       if(beneficiaries.length > 1) {
           Beneficiary pendingNewBeneficiary = new Beneficiary(address(this), _beneficiaryEntity, _entity);
           pendingBeneficiaries.push(pendingNewBeneficiary);
@@ -92,15 +216,14 @@ contract Trust is Trusteed {
   }
 
   /**
-   * @dev allows beneficiaries to agree to add pending beneficiary
-   * @param  _entity  entity address of the existing beneficiary
+   * @dev allow beneficiaries to agree to add pending beneficiary
    * @param  _beneficiary beneficiary address of the pending beneficiary
    */
-  function agreeToAddBeneficiary(address _entity, address _beneficiary)
+  function agreeToAddBeneficiary(address _beneficiary)
       public
       notDissolved
-      beneficiary(_entity)
   {
+      address _entity = validateSender();
       Beneficiary pendingBeneficiary = Beneficiary(_beneficiary);
       pendingBeneficiary.sign(_entity);
       if(beneficiaries.length == pendingBeneficiary.countSignatures())
@@ -110,12 +233,12 @@ contract Trust is Trusteed {
       }
   }
 
-  function dissolveSignatures()
+  function getDissolveSignatures()
       public
       notDissolved
       constant returns (address[])
   {
-      return dissolve;
+      return dissolveSignatures;
   }
 
   function saleOffers()
@@ -125,5 +248,4 @@ contract Trust is Trusteed {
   {
       return sales;
   }
-
 }

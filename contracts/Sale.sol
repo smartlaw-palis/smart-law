@@ -1,11 +1,15 @@
 pragma solidity ^0.4.15;
-import './UtilsLib.sol';
+import './UnderTrust.sol';
 
-contract Sale {
+contract Sale is UnderTrust {
 
-  address public trust;
-  uint public amount;
-  address[] signatures;
-  bool public disabled;
+  uint public amount; // wei
 
+  function Sale(address _trust, uint _amount, address _signature)
+      public
+      UnderTrust(_trust)
+  {
+      amount = _amount;
+      signatures.push(_signature);
+  }
 }

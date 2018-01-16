@@ -16,7 +16,7 @@ contract('Trust', (accounts) => {
           assert.equal(isBeneficiary, true);
           let beneficiaries = await contract.beneficiariesSignatures.call();
           assert.equal(beneficiaries.length, 1);
-          let dissolveSignatures = await contract.dissolveSignatures.call();
+          let dissolveSignatures = await contract.getDissolveSignatures.call();
           assert.equal(dissolveSignatures.length, 0);
           let saleOffers = await contract.saleOffers.call();
           assert.equal(saleOffers.length, 0);

@@ -1,5 +1,6 @@
 pragma solidity ^0.4.15;
 import './Trusteed.sol';
+import { SmartLawTrust } from './SmartLawTrust.sol';
 
 contract Entity is Trusteed {
     address public owner;
@@ -31,7 +32,12 @@ contract Entity is Trusteed {
         _;
     }
 
-    function() payable {
+    modifier validateSender() {
+        require(msg.sender == owner || msg.sender == trustee);
+        _;
+    }
+
+    function() public payable {
       funds += msg.value;
     }
 
@@ -64,23 +70,28 @@ contract Entity is Trusteed {
         public
         ownerOnly(msg.sender)
     {
-        var amount = funds;
-        funds = 0;
-        if(!msg.sender.send(amount))
-          funds = amount;
+        SmartLawTrust smartLaw = SmartLawTrust(trustee);
+        smartLaw.withdraw();
     }
 
-    function deposit()
+    function deposit(uint _amount)
         public
-        payable
+        trusteeOnly(msg.sender)
     {
-        funds += msg.value;
+        funds += _amount;
     }
 
-    function balance()
+    function sweepFunds()
         public
-        ownerOnly(msg.sender)
-        constant returns(uint256)
+        trusteeOnly(msg.sender)
+    {
+        funds = 0;
+    }
+
+    function availableFunds()
+        public
+        validateSender
+        constant returns(uint)
     {
         return funds;
     }

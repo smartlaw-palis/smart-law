@@ -14,7 +14,7 @@ contract('Trust', (accounts) => {
             let trustContract = await Trust.at(trust.logs[0].args.trust);
 
             try {
-                await trustContract.newBeneficiary(entity.logs[0].args.entity, accounts[9]);
+                await trustContract.newBeneficiary(accounts[9], {from: accounts[2]});
                 assert(false, "didn't throw");
             }
             catch (error) {
@@ -33,7 +33,7 @@ contract('Trust', (accounts) => {
 
             let beneficiaryEntity = await contract.newEntity(1, true, {from: accounts[2]});
             try {
-                await trustContract.newBeneficiary(accounts[9], beneficiaryEntity.logs[0].args.entity);
+                await trustContract.newBeneficiary(accounts[2], {from: accounts[1]});
                 assert(false, "didn't throw");
             }
             catch (error) {
@@ -51,7 +51,7 @@ contract('Trust', (accounts) => {
             let trustContract = await Trust.at(trust.logs[0].args.trust);
 
             let beneficiaryEntity = await contract.newEntity(1, true, {from: accounts[2]});
-            await trustContract.newBeneficiary(entity.logs[0].args.entity, beneficiaryEntity.logs[0].args.entity);
+            await trustContract.newBeneficiary(beneficiaryEntity.logs[0].args.entity, {from: accounts[1]});
 
             let isBeneficiary = await trustContract.isBeneficiary.call(entity.logs[0].args.entity);
             assert.equal(isBeneficiary, true);
@@ -71,7 +71,7 @@ contract('Trust', (accounts) => {
             let trustContract = await Trust.at(trust.logs[0].args.trust);
 
             let beneficiaryEntity = await contract.newEntity(1, true, {from: accounts[2]});
-            let res = await trustContract.newBeneficiary(entity.logs[0].args.entity, beneficiaryEntity.logs[0].args.entity);
+            let res = await trustContract.newBeneficiary(beneficiaryEntity.logs[0].args.entity, {from: accounts[1]});
             assert(res.logs.length > 0 && res.logs[0].event == 'BeneficiaryAdded');
         });
 
@@ -85,7 +85,7 @@ contract('Trust', (accounts) => {
             let trustContract = await Trust.at(trust.logs[0].args.trust);
 
             let beneficiaryEntity = await contract.newEntity(1, true, {from: accounts[2]});
-            await trustContract.newBeneficiary(entity.logs[0].args.entity, beneficiaryEntity.logs[0].args.entity);
+            await trustContract.newBeneficiary(beneficiaryEntity.logs[0].args.entity, {from: accounts[1]});
 
             let isBeneficiary = await trustContract.isBeneficiary.call(entity.logs[0].args.entity);
             assert.equal(isBeneficiary, true);
@@ -95,7 +95,7 @@ contract('Trust', (accounts) => {
             assert.equal(beneficiaries.length, 2);
 
             let newBeneficiaryEntity = await contract.newEntity(1, true, {from: accounts[3]});
-            await trustContract.newBeneficiary(entity.logs[0].args.entity, newBeneficiaryEntity.logs[0].args.entity);
+            await trustContract.newBeneficiary(newBeneficiaryEntity.logs[0].args.entity, {from: accounts[1]});
             beneficiaries = await trustContract.beneficiariesSignatures.call();
             assert.equal(beneficiaries.length, 2);
             let pendingBeneficiaries = await trustContract.getPendingBeneficiaries.call();
@@ -112,10 +112,10 @@ contract('Trust', (accounts) => {
             let trustContract = await Trust.at(trust.logs[0].args.trust);
 
             let beneficiaryEntity = await contract.newEntity(1, true, {from: accounts[2]});
-            await trustContract.newBeneficiary(entity.logs[0].args.entity, beneficiaryEntity.logs[0].args.entity);
+            await trustContract.newBeneficiary(beneficiaryEntity.logs[0].args.entity, {from: accounts[1]});
 
             let newBeneficiaryEntity = await contract.newEntity(1, true, {from: accounts[3]});
-            let res = await trustContract.newBeneficiary(entity.logs[0].args.entity, newBeneficiaryEntity.logs[0].args.entity);
+            let res = await trustContract.newBeneficiary(newBeneficiaryEntity.logs[0].args.entity, {from: accounts[2]});
             assert(res.logs.length > 0 && res.logs[0].event == 'PendingBeneficiaryAdded');
         });
 

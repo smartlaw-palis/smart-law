@@ -1,7 +1,9 @@
-
-
+const SmartLawTrust = artifacts.require('./SmartLawTrust.sol');
+const Trust = artifacts.require('./Trust.sol');
 const Entity = artifacts.require('./Entity.sol');
 const utils = require('./helpers/Utils');
+const Web3 = require('web3');
+let web3 = new Web3(Web3.givenProvider || "ws://localhost:8546");
 
 contract('Entity', (accounts) => {
     it('verifies the Entity after construction', async () => {
@@ -102,7 +104,28 @@ contract('Entity', (accounts) => {
 
     it('verifies that it has zero funds on new entity', async () => {
         let contract = await Entity.new(accounts[1], 1, true);
-        let balance = await contract.balance.call({from: accounts[1]});
+        let balance = await contract.availableFunds.call({from: accounts[1]});
+        assert.equal(Number(balance), 0);
+    });
+
+    it('verifies that only trustee can initiate sweep funds', async () => {
+        let contract = await Entity.new(accounts[1], 1, true);
+        try {
+            await contract.sweepFunds({ from: accounts[3] });
+            assert(false, "didn't throw");
+        }
+        catch (error) {
+            return utils.ensureException(error);
+        }
+    });
+
+    it('verifies that it has zero funds after sweep funds', async () => {
+        let contract = await Entity.new(accounts[1], 1, true);
+        await contract.deposit(100);
+        let balance = await contract.availableFunds.call();
+        assert.equal(Number(balance), 100);
+        await contract.sweepFunds();
+        balance = await contract.availableFunds.call();
         assert.equal(Number(balance), 0);
     });
 
@@ -116,14 +139,27 @@ contract('Entity', (accounts) => {
             return utils.ensureException(error);
         }
     });
-
-    it('verifies funds amount after withdraw funds from entity', async () => {
-        let contract = await Entity.new(accounts[2], 1, true);
-        await contract.deposit({value: 1000000000000000000});
-        let balance = await contract.balance.call({from: accounts[2]});
-        assert.equal(Number(balance), 1000000000000000000);
-        await contract.withdraw({ from: accounts[2] });
-        balance = await contract.balance.call({from: accounts[2]});
-        assert.equal(Number(balance), 0);
+    it('verifies the Entity able to withdraw and funds was set to 0 after', async () => {
+        let origBalance = await web3.eth.getBalance(accounts[3]);
+        let contract = await SmartLawTrust.new({from: accounts[9]});
+        let entity = await contract.newEntity(1, true, {from: accounts[3]});
+        let trust = await contract.newTrust('Test Trust', 'Test Property', entity.logs[0].args.entity, {
+            from: accounts[9]
+        });
+        let amount = 1000000000000000000;
+        let buyer = await contract.newEntity(1, true, {from: accounts[4]});
+        let trustContract = await Trust.at(trust.logs[0].args.trust);
+        await trustContract.newSaleOffer(amount, {from: accounts[3]});
+        let forSale = await trustContract.forSale.call();
+        let forSaleAmount = await trustContract.forSaleAmount.call();
+        await contract.buyTrust(trust.logs[0].args.trust, {from: accounts[4], value: amount});
+        let entityContract = await Entity.at(entity.logs[0].args.entity);
+        let funds = await entityContract.availableFunds({from: accounts[3]});
+        let owner = await entityContract.owner.call();
+        await entityContract.withdraw({ from: accounts[3] });
+        let balance = await web3.eth.getBalance(accounts[3]);
+        assert.isAbove(Number(balance), (Number(origBalance)));
+        funds = await entityContract.availableFunds({from: accounts[3]});
+        assert.equal(funds, 0);
     });
 });

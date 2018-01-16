@@ -67,6 +67,16 @@ contract SmartLawTrust is Owned {
       return ownersEntity[_owner];
   }
 
+  function verifyEntity(address _entity)
+      public
+      lawActive
+      ownerOnly
+      entityExist(_entity)
+  {
+      Entity entity = Entity(_entity);
+      entity.verify();
+  }
+
   function newEntity(uint _category, bool _investor)
       public
       lawActive
@@ -110,6 +120,49 @@ contract SmartLawTrust is Owned {
       Trust trust = new Trust(_name, _property, _beneficiary);
       trusts.push(trust);
       TrustCreated(trust);
+  }
+
+  /**
+   * @dev allows entity to withdraw, should be called only from entity contract
+   */
+  function withdraw()
+      public
+      entityExist(msg.sender)
+  {
+      require(entityOwners[msg.sender] != 0x0);
+      Entity entity = Entity(msg.sender);
+      uint funds = entity.availableFunds();
+      if(entityOwners[msg.sender].send(funds)) {
+          entity.sweepFunds();
+      }
+  }
+
+  function buyTrust(address _trust)
+      public
+      payable
+  {
+      require(isEntityOwner(msg.sender));
+      address _entity = entityAddress(msg.sender);
+
+      Trust trust = Trust(_trust);
+      require(trust.forSale());
+
+      uint amount = trust.forSaleAmount();
+      require(msg.value >= amount);
+      uint beneficiariesCount = trust.beneficiariesCount();
+
+      uint refund = msg.value - amount;
+      if(refund > 0) {
+          msg.sender.transfer(refund);
+      }
+
+      uint share = amount / beneficiariesCount;
+      for(uint i = 0; i < beneficiariesCount; i++) {
+          address beneficiary = trust.getBeneficiaryByIndex(i);
+          Entity entity = Entity(beneficiary);
+          entity.deposit(share);
+      }
+      trust.sold(_entity);
   }
 
 }
