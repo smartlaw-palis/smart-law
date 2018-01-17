@@ -10,17 +10,17 @@ const SmartLawTrust = artifacts.require("./SmartLawTrust.sol");
 
 module.exports = async (deployer) => {
   await deployer.deploy(UtilsLib);
-  deployer.link(UtilsLib, Sale);
-  deployer.link(UtilsLib, Beneficiary);
-  deployer.link(UtilsLib, UnderTrust);
-  deployer.link(UtilsLib, Trust);
+  //deployer.link(UtilsLib, Sale);
+  //deployer.link(UtilsLib, Beneficiary);
+  //deployer.link(UtilsLib, UnderTrust);
+  //deployer.link(UtilsLib, Trust);
   deployer.link(UtilsLib, SmartLawTrust);
-  deployer.deploy(Trusteed);
-  deployer.deploy(UnderTrust);
-  deployer.deploy(Owned);
-  deployer.deploy(Beneficiary);
-  deployer.deploy(Sale);
-  deployer.deploy(Entity);
-  deployer.deploy(Trust);
+  //deployer.deploy(Trusteed);
+  //deployer.deploy(UnderTrust);
+  //deployer.deploy(Owned);
+  //deployer.deploy(Beneficiary);
+  //deployer.deploy(Sale);
+  //deployer.deploy(Entity);
+  //deployer.deploy(Trust);
   deployer.deploy(SmartLawTrust);
 };
