@@ -39,6 +39,22 @@ contract SmartLawTrust is Owned {
       _;
   }
 
+  function trustAddresses()
+      public
+      lawActive
+      constant returns(address[])
+  {
+      return trusts;
+  }
+
+  function entityAddresses()
+      public
+      lawActive
+      constant returns(address[])
+  {
+      return entities;
+  }
+
   function updateStatus(bool _disable)
       public
       ownerOnly
