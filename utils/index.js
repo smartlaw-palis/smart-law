@@ -3,7 +3,7 @@
 
 console.log('Starting...');
 const Web3 = require('web3');
-let web3 = new Web3(Web3.givenProvider || "ws://localhost:8546");
+let web3 = new Web3(Web3.givenProvider || "ws://localhost:8545");
 console.log(web3.eth.accounts);
 
 let smartLawInstance = new web3.eth.Contract(
