@@ -3,7 +3,7 @@
 
 console.log('Starting...');
 const Web3 = require('web3');
-let web3 = new Web3(new Web3.providers.HttpProvider('https://ropsten.infura.io/r1G2QY5uh1pAnHxkf8Uw'));
+let web3 = new Web3(new Web3.providers.HttpProvider('http://127.0.0.1:8545'));
 console.log(web3.eth.accounts.wallet[0]);
 
 let smartLawInstance = new web3.eth.Contract(
