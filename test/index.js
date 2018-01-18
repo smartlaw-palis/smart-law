@@ -1,6 +1,7 @@
 const SmartLawTrust = artifacts.require('./SmartLawTrust.sol');
 
 contract('SmartLawTrust', (accounts) => {
+    console.log(accounts);
     describe('transferEntityOwnership()', () => {
         it('verifies the new owner after ownership transfer', async () => {
             let contract = await SmartLawTrust.at('0x3154E7c003039A27dB8404Ed95cBAA68A4051e5E');
