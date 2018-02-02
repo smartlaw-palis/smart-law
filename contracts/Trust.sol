@@ -5,8 +5,9 @@ import './Owned.sol';
 import './Trusteed.sol';
 import { Beneficiary } from './Beneficiary.sol';
 import { Sale } from './Sale.sol';
-import { SmartLawTrust } from './SmartLawTrust.sol';
+import { SmartTrustRE } from './SmartTrustRE.sol';
 import { Entity } from './Entity.sol';
+import { EntityFactory } from './EntityFactory.sol';
 
 contract Trust is Trusteed {
 
@@ -145,9 +146,10 @@ contract Trust is Trusteed {
       private
       constant returns (address)
   {
-      SmartLawTrust smartLaw = SmartLawTrust(trustee);
-      require(smartLaw.isEntityOwner(msg.sender));
-      address _entity = smartLaw.entityAddress(msg.sender);
+      SmartTrustRE smartLaw = SmartTrustRE(trustee);
+      EntityFactory entityFactoryInstance = EntityFactory(smartLaw.entityFactory());
+      require(entityFactoryInstance.isEntityOwner(msg.sender));
+      address _entity = entityFactoryInstance.entityAddress(msg.sender);
       require(isBeneficiary(_entity));
       return _entity;
   }
@@ -199,10 +201,11 @@ contract Trust is Trusteed {
       public
       notDissolved
   {
-      SmartLawTrust smartLaw = SmartLawTrust(trustee);
-      require(smartLaw.isEntityOwner(msg.sender));
-      require(smartLaw.isEntity(_beneficiaryEntity));
-      address _entity = smartLaw.entityAddress(msg.sender);
+      SmartTrustRE smartLaw = SmartTrustRE(trustee);
+      EntityFactory entityFactoryInstance = EntityFactory(smartLaw.entityFactory());
+      require(entityFactoryInstance.isEntityOwner(msg.sender));
+      require(entityFactoryInstance.isEntity(_beneficiaryEntity));
+      address _entity = entityFactoryInstance.entityAddress(msg.sender);
       require(isBeneficiary(_entity));
       if(beneficiaries.length > 1) {
           Beneficiary pendingNewBeneficiary = new Beneficiary(address(this), _beneficiaryEntity, _entity);
