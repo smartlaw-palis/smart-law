@@ -2,7 +2,8 @@ pragma solidity ^0.4.15;
 
 import { EntityFactory } from './EntityFactory.sol';
 import { Entity } from './Entity.sol';
-import { Trust } from './Trust.sol';
+import { TrustRE } from './TrustRE.sol';
+import { Bid } from './Bid.sol';
 import './Owned.sol';
 
 contract SmartTrustRE is Owned {
@@ -12,6 +13,7 @@ contract SmartTrustRE is Owned {
   address[] public trusts;
 
   event TrustCreated(address trust);
+  event BidCreated(address trust, address bid);
 
   function SmartTrustRE(address _entityFactory)
       public
@@ -36,7 +38,7 @@ contract SmartTrustRE is Owned {
   function trustAddresses()
       public
       lawActive
-      constant returns(address[])
+      view returns(address[])
   {
       return trusts;
   }
@@ -66,7 +68,7 @@ contract SmartTrustRE is Owned {
   {
       EntityFactory entityFactoryInstance = EntityFactory(entityFactory);
       require(entityFactoryInstance.isEntity(_beneficiary));
-      Trust trust = new Trust(_name, _property, _beneficiary);
+      TrustRE trust = new TrustRE(_name, _property, _beneficiary);
       trusts.push(trust);
       TrustCreated(trust);
   }
@@ -88,33 +90,98 @@ contract SmartTrustRE is Owned {
       }
   }
 
-  function buyTrust(address _trust)
-      public
-      payable
+  function senderEntity()
+      private
+      view returns (address)
   {
       EntityFactory entityFactoryInstance = EntityFactory(entityFactory);
       require(entityFactoryInstance.isEntityOwner(msg.sender));
-      address _entity = entityFactoryInstance.entityAddress(msg.sender);
+      return entityFactoryInstance.entityAddress(msg.sender);
+  }
 
-      Trust trust = Trust(_trust);
-      require(trust.forSale());
-
-      uint amount = trust.forSaleAmount();
-      require(msg.value >= amount);
+  function splitProceed(address _trust, uint _amount)
+      private
+  {
+      require(msg.value >= _amount);
+      TrustRE trust = TrustRE(_trust);
       uint beneficiariesCount = trust.beneficiariesCount();
 
-      uint refund = msg.value - amount;
+      uint refund = msg.value - _amount;
       if(refund > 0) {
           msg.sender.transfer(refund);
       }
 
-      uint share = amount / beneficiariesCount;
+      uint share = _amount / beneficiariesCount;
       for(uint i = 0; i < beneficiariesCount; i++) {
           address beneficiary = trust.getBeneficiaryByIndex(i);
           Entity entity = Entity(beneficiary);
           entity.deposit(share);
       }
+  }
+
+  function buyTrust(address _trust)
+      public
+      payable
+  {
+      address _entity = senderEntity();
+      TrustRE trust = TrustRE(_trust);
+      require(trust.forSale());
+      uint amount = trust.forSaleAmount();
+      splitProceed(_trust, amount);
       trust.sold(_entity);
+  }
+
+  function fundLoan(address _trust)
+      public
+      payable
+  {
+      address _entity = senderEntity();
+      TrustRE trust = TrustRE(_trust);
+      require(trust.activeLoan() != 0x0); // should have an activate loan proposal
+      require(!trust.loanFunded()); // loan should not be funded
+      uint amount = trust.loanAmount();
+      splitProceed(_trust, amount);
+      trust.funded(_entity);
+  }
+
+  function payLoan(address _trust)
+      public
+      payable
+  {
+      TrustRE trust = TrustRE(_trust);
+      require(trust.activeLoan() != 0x0); // should have an activate loan proposal
+      require(trust.loanFunded()); // loan should be funded
+      uint amountDue = trust.loanAmountDue();
+      require(msg.value >= amountDue);
+      uint refund = msg.value - amountDue;
+      if(refund > 0) {
+          msg.sender.transfer(refund);
+      }
+      Entity entity = Entity(trust.lender());
+      entity.deposit(msg.value);
+      trust.loanPaid();
+  }
+
+  function placeBid(address _trust)
+      public
+      payable
+  {
+      address _entity = senderEntity();
+      TrustRE trust = TrustRE(_trust);
+      require(trust.auctionRunning());
+      Bid bid = new Bid(_entity, msg.value);
+      address _highestBid = trust.highestBid();
+      if(_highestBid == 0x0) {
+          trust.setHighestBid(bid);
+      } else {
+          Bid currentHighestBid = Bid(_highestBid);
+          require(msg.value > currentHighestBid.amount());
+          Entity entity = Entity(currentHighestBid.owner());
+          entity.deposit(currentHighestBid.amount());
+          trust.setHighestBid(bid);
+      }
+      trust.newBid(bid);
+      BidCreated(_trust, bid);
   }
 
 }
